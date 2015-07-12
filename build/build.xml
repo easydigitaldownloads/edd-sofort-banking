@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+Copyright (c) 2012 SOFORT AG
+$Date: 2011-10-28 13:56:59 +0200 (Fr, 28. Okt 2011) $
+@version $Id: build.xml 2005 2011-10-28 11:56:59Z dehn $
+@author SOFORT AG http://www.sofort.com (f.dehn@sofort.com)
+@internal
+-->
+
+<project name="SofortLib" default="help" basedir=".">
+	<description>Deploy Shopware's language definition</description>
+
+	<property file="build.properties" />
+
+	<!-- SVN export SofortLib -->
+	<target name="getSofortLib" description="Retrieve SofortLib from SVN" >
+		<echo message="Exporting SofortLib..." />
+		<exec executable="svn" dir="${parser_path}">
+			<arg value="export" />
+			<arg value="-q" />
+			<arg value="${sofortLibUrl}" />
+			<arg value="${parser_path}/library" />
+		</exec>
+		<move file="${parser_path}/library" todir="${parser_path}/temp"></move>
+	</target>
+	
+	<target name="unittestsParser" description="Test LanguageParser..." depends="getSofortLib">
+		<exec executable="phpunit" dir="${unittestsParser}" failonerror="on">
+			<arg value="moreAdvancedParserTests.php"></arg>
+		</exec>
+	</target>
+	
+	<target name="unittests" description="Test sofortLib..." depends="unittestsParser">
+		<exec executable="php" dir="${unittests}" failonerror="on">
+			<arg value="start.php"></arg>
+		</exec>
+	</target>
+	
+	
+	<!-- Doxygen Template -->
+	<target name="doxygenTemplate" depends="unittests">
+		<exec executable="php" dir="${parser_path}/" failonerror="on">
+			<arg line="cliParser.php"></arg>
+			<arg value="--template=${basedir}/doc.doxyfile"></arg>
+			<arg value="--target=${parser_path}/temp/doc.doxyfile"></arg>
+			<arg value="--escape=default"></arg>
+			<arg value="--encode=default"></arg>
+			<arg value="--language1=${basedir}/build.properties"></arg>
+			<arg value="--filetype=ini"></arg>
+		</exec>
+		<exec executable="php" dir="${parser_path}/" failonerror="on">
+			<arg line="cliParser.php"></arg>
+			<arg value="--template=${basedir}/pnag.tex"></arg>
+			<arg value="--target=${parser_path}/temp/latex/pnag.tex"></arg>
+			<arg value="--escape=default"></arg>
+			<arg value="--encode=default"></arg>
+			<arg value="--language1=${basedir}/build.properties"></arg>
+			<arg value="--filetype=ini"></arg>
+		</exec>
+	</target>
+	
+	
+	<target name="documentation" depends="doxygenTemplate">
+		<echo message="Building documentation" />
+		<!-- <copy file="pnag.tex" todir="${parser_path}/temp/"></copy> -->
+		<copy file="Deckblatt.pdf" todir="${parser_path}/temp/latex"></copy>
+		<exec executable="doxygen">
+			<arg value="${parser_path}/temp/doc.doxyfile"></arg>
+		</exec>
+		<exec executable="make" dir="${parser_path}/temp/latex" failonerror="on" />
+	</target>
+	
+	
+	<!-- Paket packen und aufräumen -->
+	<target name="deploy"  description="Clean up directories and zip the sources" depends="documentation">
+		<echo message="Deploying ${ant.project.name}" />
+
+		<copy file="${parser_path}/temp/latex/refman.pdf" tofile="${parser_path}/temp/library/${version}.pdf" />
+		
+		<!-- Aufräumen  -->
+		<delete includeEmptyDirs="true">
+			<fileset dir="${parser_path}/temp/library/unittests/xml" includes="**/*" />
+			<fileset file="${parser_path}/temp/library/unittests/xml" />
+			<fileset dir="${parser_path}/temp/library/unittests" includes="**/*" />
+			<fileset file="${parser_path}/temp/library/unittests" />
+		</delete>
+		
+		<exec executable="zip" dir="${parser_path}/temp/library">
+			<arg value="-rq" />
+			<arg value="${parser_path}/deployment/${version}.zip" />
+			<arg value="." />
+			<arg value="-x ./unittests" />
+		</exec>
+
+	</target>
+	
+	
+	<target name="copyFile" depends="deploy">
+		<exec executable="scp" failonerror="on">
+			<arg value="${parser_path}/deployment/${version}.zip" />
+			<arg value="root@shop.pag:/var/www/deployment" />
+		</exec>
+		<exec executable="scp" failonerror="on">
+			<arg value="${parser_path}/temp/latex/refman.pdf" />
+			<arg value="root@shop.pag:/var/www/deployment/${version}.pdf" />
+		</exec>
+	</target>
+	
+	
+	<target name="start" depends="copyFile">
+		<echo message="Starting Deployment" />
+	</target>
+	
+	
+	<target name="help">
+		<echo>The following commands are available:</echo>
+		<echo>start: build ${ant.project.name}</echo>
+		<echo>help	: prints this usage info</echo>
+		<java classname="org.apache.tools.ant.Main">
+			<arg value="-buildfile"/>
+			<arg value="${ant.file}"/>
+			<arg value="-projecthelp"/>
+		</java>
+	</target>
+</project>
