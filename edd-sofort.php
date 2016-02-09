@@ -131,8 +131,24 @@ function sofort_ipn() {
 }
 add_action( 'init', 'sofort_ipn' );
 
+/**
+* Register our settings section
+*
+* @return array
+*/
+function sofort_edd_settings_section( $sections ) {
+	// Note the array key here of 'sofort-settings'
+	$sections['sofort-settings'] = __( 'SofortBanking', 'edd_sofort' );
+	return $sections;
+}
+add_filter( 'edd_settings_sections_gateways', 'sofort_edd_settings_section' );
+
+/**
+* Register our settings
+*
+* @return array
+*/
 function sofort_add_settings( $settings ) {
-	global $edd_options;
 
 	$sofort_settings = array(
 		array(
@@ -149,6 +165,12 @@ function sofort_add_settings( $settings ) {
 			'size' => 'regular'
 		)
 	);
+
+	// If EDD is at version 2.5 or later...
+	if ( version_compare( EDD_VERSION, 2.5, '>=' ) ) {
+		// Use the previously noted array key as an array key again and next your settings
+		$sofort_settings = array( 'sofort-settings' => $sofort_settings );
+	}
 
 	return array_merge( $settings, $sofort_settings );
 }
