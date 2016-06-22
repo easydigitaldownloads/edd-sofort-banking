@@ -8,10 +8,11 @@ Author: Easy Digital Downloads
 Author URI: https://easydigitaldownloads.com
 */
 
-if( ! class_exists( 'EDD_License' ) ) {
-	include( plugin_dir_path( __FILE__ ) . 'EDD_License_Handler.php' );
+if( is_admin() && class_exists( 'EDD_License' ) ) {
+
+	$eddsofort_license = new EDD_License( __FILE__, 'SOFORT Banking', '1.0', 'Easy Digital Downloads' );
+
 }
-$eddsofort_license = new EDD_License( __FILE__, 'SOFORT Banking', '1.0', 'Pippin Williamson' );
 
 // registers the gateway
 function sofort_register_gateway( $gateways ) {
@@ -37,8 +38,9 @@ function sofort_process_payment( $purchase_data ) {
 	global $edd_options;
 
 	// check there is a gateway name
-	if ( ! isset( $purchase_data['post_data']['edd-gateway'] ) )
+	if ( ! isset( $purchase_data['post_data']['edd-gateway'] ) ) {
 		return;
+	}
 
 	// collect payment data
 	$payment_data = array(
@@ -69,8 +71,9 @@ function sofort_process_payment( $purchase_data ) {
 
 		} else {
 
-			if ( ! class_exists( 'SofortLib' ) )
+			if ( ! class_exists( 'SofortLib' ) ) {
 				require_once 'library/sofortLib.php';
+			}
 
 			$return_url = add_query_arg( 'payment-confirmation', 'paypal', get_permalink( $edd_options['success_page'] ) );
 
